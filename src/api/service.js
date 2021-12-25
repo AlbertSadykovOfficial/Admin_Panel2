@@ -32,14 +32,43 @@ export default class ApiService {
     /**
      * @returns {Promise.<Person[], Error>}
      */
-    getPersons() {
+    getPersons () {
         // @TODO implement
         // mix comments to person here
+        return fetch(this.options.baseUrl + 'person')
     }
     /**
      * @returns {Promise.<Comment[], Error>}
      */
-    getComments() {
+    getComments () {
         // @TODO implement
+        return fetch(this.options.baseUrl + 'comment')
+    }
+
+     /**
+     * @returns {Promise.<Comment[], Error>}
+     */
+    getGroups() {
+        // @TODO implement
+        /*
+        *  ( Api for groups hadn't worked )
+        *
+        */
+        return new Promise((resolve, reject) => { 
+            setTimeout(() => {
+                resolve(  
+                        [
+                          {
+                            "name": "Admins",
+                            "persons": [1]
+                          },
+                          {
+                            "name": "NotAdmins",
+                            "persons": [1,2]
+                          }
+                        ]
+                    )
+            }, 500)
+        })
     }
 }

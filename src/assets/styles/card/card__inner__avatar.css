@@ -1,0 +1,20 @@
+.card__inner__avatar {
+    display: inline-block;
+}
+
+.card__inner__avatar-comments-counter {
+    position: absolute;
+    margin-top: -70px;
+    margin-left: 55px;
+    background-color: var(--color-primary);
+    color: white;
+    border-radius: 50%;
+    width: 17px;
+    height: 17px;
+    display: flex;
+}
+
+.card__inner__avatar-comments-counter > span {
+    margin: auto;
+    margin-top: -3px;
+}

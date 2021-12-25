@@ -1,0 +1,12 @@
+.card__inner__description {
+    padding: 0 0.5rem;
+    display: inline-block;
+}
+
+.card__inner__description-item {
+    max-width: 0
+}
+
+.card__inner__description-name {
+    display: block ruby;
+}

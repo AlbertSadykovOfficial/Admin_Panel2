@@ -1,127 +1,104 @@
 <template>
     <div id="app">
-        <div class="search-bar">Здесь будет строка поиска</div>
-
+        <app-header :statement="statement"></app-header>
+        <div class="search-bar">
+            <input type="text" v-model:lazy="filter">
+        </div>
         <section>
-            <template>
-                <div class="person-group">
-                    <!-- Отображать название группы -->
-                    <div class="list">
-                        <template v-for="person in filteredPersons">
-                            <div class="card">
-                                <table style="width: 100%">
-                                    <tr>
-                                        <td style="width: 0">
-                                            <div class="card-avatar">
-                                                <card-avatar :url="person.avatar"></card-avatar>
-                                                <div v-if="person.comments != null">
-                                                    {{ person.comments.length }}
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td style="max-width: 0">
-                                            <div class="card-name">
-                                                <b>{{ person.name }}</b>
-                                            </div>
-                                            <div class="card-email">{{ person.email }}</div>
-                                        </td>
-                                        <td style="width: 0">
-                                            <span class="action-btn" @click="onPersonEdit">edit</span>
-                                        </td>
-                                    </tr>
-                                </table>
-                            </div>
-                        </template>
-                    </div>
-                </div>
-            </template>
+            <app-position 
+                v-if="['position'].includes(statement.getPage())" 
+                v-for="group in filteredPositions" 
+                :group="group">
+            </app-position>
+            <app-group 
+                v-if="['group'].includes(statement.getPage())" 
+                v-for="group in filteredGroups" 
+                :name="group.name"        
+                :persons="getPersons(group)">
+            </app-group>
         </section>
 
-        <ui-popup v-if="isPersonEditMode">
-            <template #header>
-                <h3>Имя Фамилия Сотрудника</h3>
-            </template>
-            <template #body>
-                <div class="form">
-                    <div class="form-elem">
-                        <label class="form-elem-label">name</label>
-                        <input type="text" />
-                    </div>
-                    <div class="form-elem">
-                        <label class="form-elem-label">email</label>
-                        <input type="text" />
-                    </div>
-                    <div class="form-elem">
-                        <label class="form-elem-label">position</label>
-                        <select>
-                            <option v-for="value in positions" :value="value">{{ value }}</option>
-                        </select>
-                    </div>
-                </div>
-            </template>
-            <template #footer>
-                <div class="popup-btn-group">
-                    <button class="outline" @click="onPersonEdit">Отменить</button>
-                    <button @click="onPersonEdit">Сохранить</button>
-                </div>
-            </template>
-        </ui-popup>
+        <ui-popup v-if="modal.show" :modal="modal"></ui-popup>
     </div>
 </template>
 <script>
-// use this Service class to load data
 import ApiService from './api/service.js';
-import UiPopup from './components/Popup.vue';
-import CardAvatar from './components/Avatar.vue';
-import persons from './api/data';
+import Statement from './addons/statement.js'
+import Modal from './addons/modal.js'
+
+import Fabric from './addons/fabric.js'
+const name_filter = new Fabric('name', (item, query) => item.includes(query))
+const email_filter = new Fabric('email', (item, query) => item.includes(query))
+
+import AppHeader from './components/Addons/Header.vue';
+import UiPopup from './components/Addons/Popup.vue';
+
+import AppGroup from './components/PageGroup.vue';
+import AppPosition from './components/PagePosition.vue';
 
 export default {
     name: 'App',
-    components: { UiPopup, CardAvatar },
+    components: { AppHeader, AppPosition, AppGroup, UiPopup },
     data: () => ({
-        persons: persons,
-        positions: [],
-        isPersonEditMode: false
+        statement: new Statement(['group', 'position'], 'group'),
+        modal: new Modal(),
+        filter: '',
+        state: {}
     }),
+    created () {
+        const api = new ApiService()
+        
+        this.state = this.$store.state
+
+        this.$store.dispatch('fetchPersons', api)
+        this.$store.dispatch('fetchComments', api)
+        this.$store.dispatch('fetchGroups', api)
+    },
     computed: {
         /**
          * @return {import('./api/service.js').Person[]}
          */
-        filteredPersons() {
-            return this.persons;
+        filteredPositions () {
+            const persons = this.$store.persons
+            const positions = {}
+            persons.map( item => {
+                if (name_filter(item, this.filter) || email_filter(item, this.filter)){
+                    if (item.position in positions)
+                        positions[item.position].push(item)
+                    else
+                        positions[item.position] = [ item ]
+                }
+            })
+            this.$store.dispatch('setPositions', Object.keys(positions))
+            return positions
+        },
+        filteredGroups () {
+            const persons = this.$store.persons
+            const groups = this.$store.groups
+            return groups.map(group => { 
+                return {
+                    "name": group.name,
+                    "persons": group.persons.filter(person_id => {
+                        return name_filter(persons.find(item=>item.id == person_id), this.filter) || 
+                                email_filter(persons.find(item=>item.id == person_id), this.filter)
+                    })
+                }
+            })
         }
     },
     methods: {
-        async fetchPersons() {
-            // Use ApiService `getPersons` call here to load data
-            this.persons = persons ;
-        },
-        onPersonEdit() {
-            this.isPersonEditMode = !this.isPersonEditMode;
+        getPersons (payload) {
+            const persons = this.$store.persons
+            return persons.filter(item => payload.persons.includes(Number(item.id)) )
         }
     }
 };
 </script>
-<style lang="pcss" scoped>
-.search-bar {
-    margin-bottom: 1rem;
-    &-input {
-        width: 100%;
-    }
-}
-.person-group {
-    margin-bottom: 2rem;
+<style src="@/assets/styles/search/search-bar.pcss" lang="pcss"></style>
+<style src="@/assets/styles/form/form.pcss" lang="pcss"></style>
 
-    &-name {
-        margin-bottom: 1rem;
-    }
-}
-.popup-btn-group {
-    text-align: right;
-    button {
-        margin-left: 1rem;
-    }
-}
+<style lang="pcss">
+
 .action-btn {
     color: var(--color-primary);
     font-size: var(--font-size-small);
@@ -129,43 +106,6 @@ export default {
     border-bottom: 1px dashed currentColor;
     cursor: pointer;
 }
-.list {
-  display: grid;
-  gap: 1rem;
-  grid-template-columns: repeat(auto-fill, minmax(20rem, 1fr));
-}
 
-.form {
-  width: 25rem;
-  &-elem {
-    margin-bottom: 1rem;
-    &:last-child {
-      margin-bottom: 0;
-    }
-    &-label {
-      display: block;
-      font-size: var(--font-size-small);
-      text-transform: uppercase;
-      opacity: 0.5;
-    }
-  }
-}
-.card {
-  padding: 1rem;
-  background: white;
-  box-shadow: 0 1px 3px 1px rgba(0, 0, 0, 0.1);
-  &-avatar {
-    position: relative;
-    margin-right: 1rem;
-    &-email {
-      font-size: var(--font-size-small);
-    }
-    &-email,
-    &-name {
-      overflow: hidden;
-      white-space: nowrap;
-      text-overflow: ellipsis;
-    }
-  }
-}
 </style>
+
